@@ -1,0 +1,54 @@
+name: moc_kinh
+description: "Ứng dụng Mộc Kinh - Đọc kinh Phật tối giản."
+
+# Không đưa ứng dụng này lên kho mã nguồn công cộng pub.dev
+publish_to: 'none'
+
+# Phiên bản của ứng dụng (VersionName+VersionCode)
+# Khi cập nhật app lên CH Play, nhớ tăng số đằng sau dấu cộng (ví dụ: 1.0.0+2)
+version: 1.0.0+1
+
+environment:
+  # Yêu cầu phiên bản Dart SDK
+  sdk: ^3.12.2
+
+# -----------------------------------------------------
+# DANH SÁCH THƯ VIỆN SỬ DỤNG TRONG ỨNG DỤNG (Dependencies)
+# -----------------------------------------------------
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Thư viện cho các biểu tượng của hệ điều hành iOS
+  cupertino_icons: ^1.0.8
+  
+  # Thư viện giao diện & trải nghiệm
+  remixicon: ^4.9.3        # Icon sắc nét, tối giản
+  google_fonts: ^8.2.1     # Hỗ trợ font chữ Lora
+
+  # Thư viện quản lý State & Cơ sở dữ liệu
+  provider: ^6.1.5+1       # Quản lý trạng thái ứng dụng (State Management)
+  hive: ^2.2.3             # Cơ sở dữ liệu cục bộ tốc độ cao
+  hive_flutter: ^1.1.0     # Hỗ trợ Hive tích hợp với Flutter
+  wakelock_plus: ^1.7.0
+
+# -----------------------------------------------------
+# THƯ VIỆN DÀNH CHO MÔI TRƯỜNG PHÁT TRIỂN (Dev Dependencies)
+# -----------------------------------------------------
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # Trình kiểm tra lỗi cú pháp (Linter)
+  flutter_lints: ^6.0.0
+
+# -----------------------------------------------------
+# CẤU HÌNH ĐẶC THÙ CHO FLUTTER
+# -----------------------------------------------------
+flutter:
+  # Bật hỗ trợ Material Design mặc định
+  uses-material-design: true
+
+  # Khai báo các thư mục chứa tài nguyên (Hình ảnh, âm thanh, file JSON...)
+  assets:
+    - assets/datas/

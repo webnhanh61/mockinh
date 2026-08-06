@@ -1,15 +1,13 @@
 /**
  * Tên file: reader_screen.dart
  * Tên tác giả: La Văn Thanh
- * Mô tả: Màn hình đọc kinh tự động cuộn, tích hợp Wakelock giữ sáng màn hình và Hive lưu vị trí đọc. [WEBVNZ.COM]
+ * Mô tả: Màn hình đọc kinh tự động cuộn chữ, tối ưu hiển thị font chữ và màu sắc cho Dark Mode. [WEBVNZ.COM]
  */
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:remixicon/remixicon.dart';
-import 'dart:async';
-import 'package:wakelock_plus/wakelock_plus.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:remixicon/remixicon.dart'; // Import Remix Icon
+import 'dart:async'; // Bổ sung thư viện cho Timer
 
 class ReaderScreen extends StatefulWidget {
   const ReaderScreen({Key? key}) : super(key: key);
@@ -29,54 +27,18 @@ class _ReaderScreenState extends State<ReaderScreen> {
   Timer? _resumeTimer;
   // ----------------------------
 
-  // Tên box Hive để lưu tiến độ
-  final String _progressBoxName = 'reading_progress';
-  String _currentKinhTitle = 'unknown';
-
   @override
   void initState() {
     super.initState();
     // Bật chế độ Immersive để ẩn thanh trạng thái và thanh điều hướng
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-
-    // Bật Wakelock: Giữ màn hình luôn sáng trong suốt quá trình đọc kinh
-    WakelockPlus.enable();
-
     _scrollController = ScrollController();
-
-    // Khởi tạo Hive và tải vị trí đọc dở sau khi frame đầu tiên render xong
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await Hive.initFlutter();
-      final box = await Hive.openBox(_progressBoxName);
-
-      if (!mounted) return;
-
-      final Map<String, dynamic>? kinhData =
-          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-      _currentKinhTitle = kinhData?['title'] ?? 'unknown';
-
-      // Lấy tọa độ cuộn đã lưu, mặc định là 0.0 nếu chưa từng đọc
-      final savedOffset = box.get(_currentKinhTitle, defaultValue: 0.0);
-
-      if (savedOffset > 0 && _scrollController.hasClients) {
-        _scrollController.jumpTo(savedOffset);
-      }
-    });
   }
 
   @override
   void dispose() {
-    // Lưu vị trí đọc lần cuối trước khi thoát khỏi màn hình
-    if (_scrollController.hasClients && Hive.isBoxOpen(_progressBoxName)) {
-      final box = Hive.box(_progressBoxName);
-      box.put(_currentKinhTitle, _scrollController.offset);
-    }
-
     // Trả lại thanh trạng thái bình thường khi thoát khỏi màn hình đọc
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-
-    // Tắt Wakelock: Cho phép màn hình tắt bình thường khi ra khỏi trang đọc
-    WakelockPlus.disable();
 
     // Dọn dẹp bộ nhớ
     _scrollController.dispose();
@@ -85,7 +47,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
     super.dispose();
   }
 
-  // Hàm quản lý Auto-scroll bằng animateTo
+  // Hàm quản lý Auto-scroll bằng animateTo (mượt hơn và không xung đột Physics)
   void _updateAutoScroll({bool forceStop = false}) {
     if (!mounted || !_scrollController.hasClients) return;
 
@@ -124,13 +86,14 @@ class _ReaderScreenState extends State<ReaderScreen> {
   }
 
   void _showSettingsSheet() {
+    // Xác định màu nền BottomSheet theo theme
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final sheetBgColor = isDark ? const Color(0xFF2A2A2A) : Colors.white;
     final textColor = Theme.of(context).colorScheme.onSurface;
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: sheetBgColor,
+      backgroundColor: sheetBgColor, // Màu nền động
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
       ),
@@ -152,7 +115,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: textColor,
+                        color: textColor, // Chữ động theo theme
                       ),
                     ),
                     const SizedBox(height: 32),
@@ -212,7 +175,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
                               setModalState(() => _scrollSpeed = value);
                               setState(() {
                                 _scrollSpeed = value;
-                                _updateAutoScroll();
+                                _updateAutoScroll(); // Cập nhật cuộn ngay khi kéo thanh tốc độ
                               });
                             },
                           ),
@@ -243,6 +206,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
     final title = kinhData?['title'] ?? 'Nội dung kinh';
     final content = kinhData?['content'] ?? 'Nội dung đang được cập nhật...';
+
+    // Xác định màu chữ động theo theme cho toàn bộ văn bản kinh
     final textColor = Theme.of(context).colorScheme.onSurface;
 
     return Scaffold(
@@ -265,13 +230,6 @@ class _ReaderScreenState extends State<ReaderScreen> {
                     _resumeTimer?.cancel();
                   } else if (notification is ScrollEndNotification) {
                     if (_isUserScrolling) {
-                      // Lưu vị trí ngay khi người dùng vừa dừng cuộn tay
-                      if (Hive.isBoxOpen(_progressBoxName)) {
-                        Hive.box(
-                          _progressBoxName,
-                        ).put(_currentKinhTitle, _scrollController.offset);
-                      }
-
                       _resumeTimer = Timer(const Duration(seconds: 2), () {
                         if (mounted) {
                           _isUserScrolling = false;
@@ -299,18 +257,18 @@ class _ReaderScreenState extends State<ReaderScreen> {
                         style: TextStyle(
                           fontSize: _fontSize + 4,
                           fontWeight: FontWeight.bold,
-                          color: textColor,
+                          color: textColor, // Đổi màu chữ theo theme
                           height: 1.5,
                         ),
                       ),
                       const SizedBox(height: 32),
                       Text(
-                        content, // Dữ liệu lấy từ JSON nội bộ
+                        content, // Nội dung động
                         textAlign: TextAlign.justify,
                         style: TextStyle(
                           fontSize: _fontSize,
                           height: 2.0,
-                          color: textColor,
+                          color: textColor, // Đổi màu chữ theo theme
                         ),
                       ),
                     ],
@@ -339,7 +297,9 @@ class _ReaderScreenState extends State<ReaderScreen> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withOpacity(0.6),
+                    Colors.black.withOpacity(
+                      0.6,
+                    ), // Tăng nhẹ opacity để nổi bật nút back
                     Colors.black.withOpacity(0.0),
                   ],
                 ),

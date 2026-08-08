@@ -1,7 +1,7 @@
 /**
  * Tên file: main.dart
  * Tên tác giả: La Văn Thanh
- * Mô tả: Khởi tạo ứng dụng, cấu hình Hive, MultiProvider và định nghĩa Theme. Bổ sung ReadingHistoryProvider để lưu vị trí đọc. [WEBVNZ.COM]
+ * Mô tả: Khởi tạo ứng dụng, cấu hình Hive, MultiProvider và khởi tạo lõi Thông báo (NotificationHelper). [WEBVNZ.COM]
  */
 library;
 
@@ -14,19 +14,26 @@ import 'package:hive_flutter/hive_flutter.dart';
 // Import Providers
 import 'providers/settings_provider.dart';
 import 'providers/bookmark_provider.dart';
-import 'providers/reading_history_provider.dart'; // Import Provider mới
+import 'providers/reading_history_provider.dart';
 
 // Import các màn hình
 import 'ui/screens/main_screen.dart';
 import 'ui/screens/reader_screen.dart';
 
+// Import cấu hình thông báo
+import 'utils/notification_helper.dart';
+
 void main() async {
+  // Đảm bảo Flutter core đã sẵn sàng trước khi gọi các hàm native
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Khởi tạo Hive
+  // Khởi tạo cơ sở dữ liệu cục bộ Hive
   await Hive.initFlutter();
 
-  // Thiết lập màu sắc thanh trạng thái
+  // ĐÁNH THỨC HỆ THỐNG THÔNG BÁO VÀ MÚI GIỜ KHI APP VỪA MỞ LÊN (Quan trọng nhất)
+  await NotificationHelper.init();
+
+  // Thiết lập màu sắc thanh trạng thái trong suốt
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -34,15 +41,12 @@ void main() async {
     ),
   );
 
-  // Bọc TOÀN BỘ ứng dụng bằng MultiProvider
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => BookmarkProvider()),
-        ChangeNotifierProvider(
-          create: (_) => ReadingHistoryProvider(),
-        ), // Đăng ký HistoryProvider
+        ChangeNotifierProvider(create: (_) => ReadingHistoryProvider()),
       ],
       child: const MocKinhApp(),
     ),
@@ -54,7 +58,6 @@ class MocKinhApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Định nghĩa bảng màu Mộc (Earth Tones)
     const Color mocBackgroundLight = Color(0xFFFDFBF7);
     const Color mocTextLight = Color(0xFF2D2825);
     const Color mocPrimary = Color(0xFF8B5A2B);
@@ -70,7 +73,6 @@ class MocKinhApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       themeMode: settingsProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
 
-      // --- LIGHT THEME ---
       theme: ThemeData(
         brightness: Brightness.light,
         primaryColor: mocPrimary,
@@ -99,7 +101,6 @@ class MocKinhApp extends StatelessWidget {
         ),
       ),
 
-      // --- DARK THEME ---
       darkTheme: ThemeData(
         brightness: Brightness.dark,
         primaryColor: mocPrimaryDark,
@@ -128,7 +129,6 @@ class MocKinhApp extends StatelessWidget {
         ),
       ),
 
-      // Định tuyến
       initialRoute: '/',
       routes: {
         '/': (context) => const MainScreen(),

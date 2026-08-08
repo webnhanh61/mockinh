@@ -1,7 +1,7 @@
 /**
  * Tên file: settings_provider.dart
  * Tên tác giả: La Văn Thanh
- * Mô tả: Provider quản lý trạng thái cài đặt của ứng dụng (Dark Mode, Kích thước chữ, Giờ Nhắc nhở) và lưu trữ cục bộ với Hive. [WEBVNZ.COM]
+ * Mô tả: Provider quản lý trạng thái cài đặt của ứng dụng. Gọi hiển thị hộp thoại xin quyền trước khi kích hoạt Nhắc nhở. [WEBVNZ.COM]
  */
 library;
 
@@ -58,21 +58,23 @@ class SettingsProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Hàm Bật/Tắt nhắc nhở tụng kinh
-  void toggleReminder(bool value) {
-    _isReminderEnabled = value;
-    _settingsBox.put(_reminderKey, value);
-
+  // Sửa thành async để xin quyền khi bật thông báo
+  Future<void> toggleReminder(bool value) async {
     if (value) {
+      // 1. Hiển thị hộp thoại xin quyền từ người dùng
+      await NotificationHelper.requestPermission();
+
+      // 2. Sau đó mới lên lịch
       NotificationHelper.scheduleDailyReminder(_reminderHour, _reminderMinute);
     } else {
       NotificationHelper.cancelAllNotifications();
     }
 
+    _isReminderEnabled = value;
+    _settingsBox.put(_reminderKey, value);
     notifyListeners();
   }
 
-  // Hàm cập nhật giờ nhắc nhở
   void updateReminderTime(int hour, int minute) {
     _reminderHour = hour;
     _reminderMinute = minute;
@@ -80,14 +82,12 @@ class SettingsProvider with ChangeNotifier {
     _settingsBox.put(_reminderMinuteKey, minute);
 
     if (_isReminderEnabled) {
-      // Cập nhật lại lịch báo thức nếu đang bật
       NotificationHelper.scheduleDailyReminder(hour, minute);
     }
 
     notifyListeners();
   }
 
-  // Lấy nhãn thời gian hiển thị (VD: 19:30 hàng ngày)
   String get reminderTimeLabel {
     final h = _reminderHour.toString().padLeft(2, '0');
     final m = _reminderMinute.toString().padLeft(2, '0');

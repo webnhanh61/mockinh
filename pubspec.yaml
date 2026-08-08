@@ -41,6 +41,7 @@ dependencies:
   lunar: ^1.2.22
   flutter_local_notifications: ^17.1.2
   timezone: ^0.9.2
+  audioplayers: ^6.8.1
 
 # -----------------------------------------------------
 # THƯ VIỆN DÀNH CHO MÔI TRƯỜNG PHÁT TRIỂN (Dev Dependencies)
@@ -78,4 +79,5 @@ flutter:
   # Khai báo các thư mục chứa tài nguyên
   assets:
     - assets/datas/
+    - assets/audios/
     - assets/main_icon.png

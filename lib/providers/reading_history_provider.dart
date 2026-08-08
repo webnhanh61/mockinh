@@ -1,8 +1,6 @@
-/**
- * Tên file: reading_history_provider.dart
- * Tên tác giả: La Văn Thanh
- * Mô tả: Provider quản lý lịch sử đọc kinh, lưu trữ vị trí cuộn (scroll offset) cục bộ với Hive. [WEBVNZ.COM]
- */
+/// Tên file: reading_history_provider.dart
+/// Tên tác giả: La Văn Thanh
+/// Mô tả: Provider quản lý lịch sử đọc kinh, lưu trữ vị trí cuộn (scroll offset) cục bộ với Hive. [WEBVNZ.COM]
 library;
 
 import 'package:flutter/material.dart';

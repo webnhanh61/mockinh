@@ -1,8 +1,6 @@
-/**
- * Tên file: notification_helper.dart
- * Tên tác giả: La Văn Thanh
- * Mô tả: Cấu hình và quản lý hệ thống thông báo nhắc nhở. Đã bổ sung hàm xin quyền hiển thị hộp thoại Runtime Permission trên Android 13+. [WEBVNZ.COM]
- */
+/// Tên file: notification_helper.dart
+/// Tên tác giả: La Văn Thanh
+/// Mô tả: Cấu hình và quản lý hệ thống thông báo nhắc nhở. Đã bổ sung hàm xin quyền hiển thị hộp thoại Runtime Permission trên Android 13+. [WEBVNZ.COM]
 library;
 
 import 'dart:io';

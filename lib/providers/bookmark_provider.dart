@@ -1,8 +1,6 @@
-/**
- * Tên file: bookmark_provider.dart
- * Tên tác giả: La Văn Thanh
- * Mô tả: Provider quản lý trạng thái lưu (Bookmark) các bài kinh, lưu trữ cục bộ bằng Hive. [WEBVNZ.COM]
- */
+/// Tên file: bookmark_provider.dart
+/// Tên tác giả: La Văn Thanh
+/// Mô tả: Provider quản lý trạng thái lưu (Bookmark) các bài kinh, lưu trữ cục bộ bằng Hive. [WEBVNZ.COM]
 library;
 
 import 'package:flutter/material.dart';

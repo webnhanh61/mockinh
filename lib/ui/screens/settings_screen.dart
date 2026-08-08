@@ -1,15 +1,16 @@
 /**
  * Tên file: settings_screen.dart
  * Tên tác giả: La Văn Thanh
- * Mô tả: Màn hình cài đặt ứng dụng Mộc Kinh, quản lý cấu hình giao diện, xử lý kích thước chữ, sử dụng CupertinoPicker dạng cuộn để chọn giờ nhắc nhở. [WEBVNZ.COM]
+ * Mô tả: Màn hình cài đặt ứng dụng Mộc Kinh. Đã tích hợp trọn vẹn giao diện cấu hình Âm thanh không gian (Volume & Tracks). [WEBVNZ.COM]
  */
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart'; // Import để sử dụng CupertinoPicker dạng cuộn
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:remixicon/remixicon.dart';
 import '../../providers/settings_provider.dart';
+import '../../providers/audio_provider.dart'; // Import thêm AudioProvider
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -17,12 +18,23 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settingsProvider = Provider.of<SettingsProvider>(context);
+    final audioProvider = Provider.of<AudioProvider>(context);
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark
         ? const Color(0xFF2A2A2A)
         : const Color(0xFFF3EBE1);
     final textColor = Theme.of(context).colorScheme.onSurface;
+
+    // Tìm tên bài nhạc đang phát để hiển thị làm subtitle
+    String currentTrackName = '';
+    if (audioProvider.isLoaded) {
+      final currentTrack = audioProvider.audioTracks.firstWhere(
+        (track) => track['id'] == audioProvider.selectedTrack,
+        orElse: () => {'name': 'Không xác định'},
+      );
+      currentTrackName = currentTrack['name'] ?? '';
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Cài Đặt')),
@@ -76,7 +88,6 @@ class SettingsScreen extends StatelessWidget {
                 cardColor: cardColor,
                 textColor: textColor,
                 onTap: () {
-                  // Gọi hàm hiển thị BottomSheet cuộn giờ
                   _showTimePickerSheet(
                     context,
                     cardColor,
@@ -96,11 +107,24 @@ class SettingsScreen extends StatelessWidget {
               _buildListTile(
                 icon: Remix.volume_up_line,
                 title: 'Âm thanh không gian',
+                subtitle: audioProvider.isAudioEnabled
+                    ? currentTrackName
+                    : 'Đang tắt',
                 cardColor: cardColor,
                 textColor: textColor,
+                onTap: () {
+                  _showAudioSettingsSheet(
+                    context,
+                    cardColor,
+                    textColor,
+                    audioProvider,
+                  );
+                },
                 trailing: Switch(
-                  value: false,
-                  onChanged: (val) {},
+                  value: audioProvider.isAudioEnabled,
+                  onChanged: (val) {
+                    audioProvider.toggleAudio(val);
+                  },
                   activeThumbColor: Theme.of(context).colorScheme.primary,
                 ),
               ),
@@ -216,7 +240,128 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  // Hàm hiển thị BottomSheet với 2 cột cuộn Giờ và Phút
+  void _showAudioSettingsSheet(
+    BuildContext context,
+    Color bgColor,
+    Color textColor,
+    AudioProvider provider,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: bgColor,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Tùy chỉnh Âm thanh',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Thanh trượt âm lượng
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Remix.volume_down_line,
+                        color: Colors.grey.shade500,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Slider(
+                          value: provider.volume,
+                          min: 0.0,
+                          max: 1.0,
+                          activeColor: Theme.of(context).primaryColor,
+                          inactiveColor: Theme.of(
+                            context,
+                          ).primaryColor.withValues(alpha: 0.2),
+                          onChanged: (value) {
+                            provider.setVolume(value);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Remix.volume_up_fill,
+                        color: Colors.grey.shade500,
+                        size: 24,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+
+                // Danh sách bài nhạc
+                ...provider.audioTracks.map((track) {
+                  final isSelected = provider.selectedTrack == track['id'];
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 24.0,
+                    ),
+                    title: Text(
+                      track['name']!,
+                      style: TextStyle(
+                        color: isSelected
+                            ? Theme.of(context).primaryColor
+                            : textColor,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        fontSize: 16,
+                      ),
+                    ),
+                    leading: Icon(
+                      Remix.music_2_line,
+                      color: isSelected
+                          ? Theme.of(context).primaryColor
+                          : Colors.grey.shade500,
+                    ),
+                    trailing: isSelected
+                        ? Icon(
+                            Remix.check_line,
+                            color: Theme.of(context).primaryColor,
+                          )
+                        : null,
+                    onTap: () {
+                      provider.changeTrack(track['id']!);
+                      if (!provider.isAudioEnabled) {
+                        provider.toggleAudio(true); // Tự động bật nếu đang tắt
+                      }
+                      Navigator.pop(context);
+                    },
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showTimePickerSheet(
     BuildContext context,
     Color bgColor,
@@ -238,7 +383,6 @@ class SettingsScreen extends StatelessWidget {
             height: 320,
             child: Column(
               children: [
-                // Thanh Header chứa nút Hủy và Xong
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16.0,
@@ -267,7 +411,6 @@ class SettingsScreen extends StatelessWidget {
                       ),
                       TextButton(
                         onPressed: () {
-                          // Lưu giờ đã chọn và bật nhắc nhở nếu đang tắt
                           provider.updateReminderTime(
                             selectedHour,
                             selectedMinute,
@@ -289,20 +432,16 @@ class SettingsScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-
                 const Divider(height: 1),
-
-                // Vùng cuộn giờ và phút
                 Expanded(
                   child: Row(
                     children: [
-                      // Cột cuộn Giờ (0-23)
                       Expanded(
                         child: CupertinoPicker(
                           scrollController: FixedExtentScrollController(
                             initialItem: selectedHour,
                           ),
-                          itemExtent: 50.0, // Chiều cao mỗi item
+                          itemExtent: 50.0,
                           selectionOverlay:
                               CupertinoPickerDefaultSelectionOverlay(
                                 background: Theme.of(
@@ -326,8 +465,6 @@ class SettingsScreen extends StatelessWidget {
                           }),
                         ),
                       ),
-
-                      // Dấu hai chấm phân cách
                       Text(
                         ':',
                         style: TextStyle(
@@ -336,8 +473,6 @@ class SettingsScreen extends StatelessWidget {
                           color: textColor,
                         ),
                       ),
-
-                      // Cột cuộn Phút (0-59)
                       Expanded(
                         child: CupertinoPicker(
                           scrollController: FixedExtentScrollController(

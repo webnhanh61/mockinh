@@ -1,16 +1,18 @@
 /**
  * Tên file: settings_screen.dart
  * Tên tác giả: La Văn Thanh
- * Mô tả: Màn hình cài đặt ứng dụng Mộc Kinh, quản lý cấu hình giao diện (Dark Mode) và các tiện ích khác. [WEBVNZ.COM]
+ * Mô tả: Màn hình cài đặt ứng dụng Mộc Kinh, quản lý cấu hình giao diện, xử lý kích thước chữ, sử dụng CupertinoPicker dạng cuộn để chọn giờ nhắc nhở. [WEBVNZ.COM]
  */
+library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart'; // Import để sử dụng CupertinoPicker dạng cuộn
 import 'package:provider/provider.dart';
 import 'package:remixicon/remixicon.dart';
 import '../../providers/settings_provider.dart';
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({Key? key}) : super(key: key);
+  const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -42,38 +44,64 @@ class SettingsScreen extends StatelessWidget {
                   onChanged: (val) {
                     settingsProvider.toggleTheme(val);
                   },
-                  activeColor: Theme.of(context).colorScheme.primary,
+                  activeThumbColor: Theme.of(context).colorScheme.primary,
                 ),
               ),
 
               _buildListTile(
                 icon: Remix.font_size,
                 title: 'Kích thước chữ mặc định',
-                subtitle: 'Vừa',
+                subtitle: settingsProvider.fontSizeLabel,
                 cardColor: cardColor,
                 textColor: textColor,
-                onTap: () {},
+                onTap: () {
+                  _showFontSizeSheet(
+                    context,
+                    cardColor,
+                    textColor,
+                    settingsProvider,
+                  );
+                },
               ),
 
               const SizedBox(height: 24),
               _buildSectionTitle('TIỆN ÍCH'),
+
               _buildListTile(
                 icon: Remix.notification_badge_line,
                 title: 'Nhắc nhở tụng kinh',
-                subtitle: 'Đang tắt',
+                subtitle: settingsProvider.isReminderEnabled
+                    ? settingsProvider.reminderTimeLabel
+                    : 'Đang tắt',
                 cardColor: cardColor,
                 textColor: textColor,
-                onTap: () {},
+                onTap: () {
+                  // Gọi hàm hiển thị BottomSheet cuộn giờ
+                  _showTimePickerSheet(
+                    context,
+                    cardColor,
+                    textColor,
+                    settingsProvider,
+                  );
+                },
+                trailing: Switch(
+                  value: settingsProvider.isReminderEnabled,
+                  onChanged: (val) {
+                    settingsProvider.toggleReminder(val);
+                  },
+                  activeThumbColor: Theme.of(context).colorScheme.primary,
+                ),
               ),
+
               _buildListTile(
                 icon: Remix.volume_up_line,
                 title: 'Âm thanh không gian',
                 cardColor: cardColor,
                 textColor: textColor,
                 trailing: Switch(
-                  value: true,
+                  value: false,
                   onChanged: (val) {},
-                  activeColor: Theme.of(context).colorScheme.primary,
+                  activeThumbColor: Theme.of(context).colorScheme.primary,
                 ),
               ),
 
@@ -84,7 +112,9 @@ class SettingsScreen extends StatelessWidget {
                 title: 'Về ứng dụng Mộc Kinh',
                 cardColor: cardColor,
                 textColor: textColor,
-                onTap: () {},
+                onTap: () {
+                  _showAboutAppDialog(context, cardColor, textColor);
+                },
               ),
               _buildListTile(
                 icon: Remix.star_line,
@@ -100,14 +130,14 @@ class SettingsScreen extends StatelessWidget {
                   children: [
                     Icon(
                       Remix.leaf_line,
-                      color: Colors.grey.withOpacity(0.5),
+                      color: Colors.grey.withValues(alpha: 0.5),
                       size: 32,
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Mộc Kinh v1.0.0',
                       style: TextStyle(
-                        color: Colors.grey.withOpacity(0.5),
+                        color: Colors.grey.withValues(alpha: 0.5),
                         fontSize: 13,
                       ),
                     ),
@@ -132,7 +162,7 @@ class SettingsScreen extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.bold,
-            color: Colors.grey.withOpacity(0.8),
+            color: Colors.grey.withValues(alpha: 0.8),
             letterSpacing: 1.2,
           ),
         ),
@@ -177,9 +207,300 @@ class SettingsScreen extends StatelessWidget {
             : null,
         trailing:
             trailing ??
-            Icon(Remix.arrow_right_s_line, color: Colors.grey.withOpacity(0.6)),
+            Icon(
+              Remix.arrow_right_s_line,
+              color: Colors.grey.withValues(alpha: 0.6),
+            ),
         onTap: onTap,
       ),
+    );
+  }
+
+  // Hàm hiển thị BottomSheet với 2 cột cuộn Giờ và Phút
+  void _showTimePickerSheet(
+    BuildContext context,
+    Color bgColor,
+    Color textColor,
+    SettingsProvider provider,
+  ) {
+    int selectedHour = provider.reminderHour;
+    int selectedMinute = provider.reminderMinute;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: bgColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
+      ),
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: SizedBox(
+            height: 320,
+            child: Column(
+              children: [
+                // Thanh Header chứa nút Hủy và Xong
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 12.0,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text(
+                          'Hủy',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        'Chọn giờ nhắc nhở',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          // Lưu giờ đã chọn và bật nhắc nhở nếu đang tắt
+                          provider.updateReminderTime(
+                            selectedHour,
+                            selectedMinute,
+                          );
+                          if (!provider.isReminderEnabled) {
+                            provider.toggleReminder(true);
+                          }
+                          Navigator.pop(context);
+                        },
+                        child: Text(
+                          'Xong',
+                          style: TextStyle(
+                            color: Theme.of(context).primaryColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Divider(height: 1),
+
+                // Vùng cuộn giờ và phút
+                Expanded(
+                  child: Row(
+                    children: [
+                      // Cột cuộn Giờ (0-23)
+                      Expanded(
+                        child: CupertinoPicker(
+                          scrollController: FixedExtentScrollController(
+                            initialItem: selectedHour,
+                          ),
+                          itemExtent: 50.0, // Chiều cao mỗi item
+                          selectionOverlay:
+                              CupertinoPickerDefaultSelectionOverlay(
+                                background: Theme.of(
+                                  context,
+                                ).primaryColor.withValues(alpha: 0.1),
+                              ),
+                          onSelectedItemChanged: (int index) {
+                            selectedHour = index;
+                          },
+                          children: List<Widget>.generate(24, (int index) {
+                            return Center(
+                              child: Text(
+                                index.toString().padLeft(2, '0'),
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w600,
+                                  color: textColor,
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                      ),
+
+                      // Dấu hai chấm phân cách
+                      Text(
+                        ':',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
+                      ),
+
+                      // Cột cuộn Phút (0-59)
+                      Expanded(
+                        child: CupertinoPicker(
+                          scrollController: FixedExtentScrollController(
+                            initialItem: selectedMinute,
+                          ),
+                          itemExtent: 50.0,
+                          selectionOverlay:
+                              CupertinoPickerDefaultSelectionOverlay(
+                                background: Theme.of(
+                                  context,
+                                ).primaryColor.withValues(alpha: 0.1),
+                              ),
+                          onSelectedItemChanged: (int index) {
+                            selectedMinute = index;
+                          },
+                          children: List<Widget>.generate(60, (int index) {
+                            return Center(
+                              child: Text(
+                                index.toString().padLeft(2, '0'),
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w600,
+                                  color: textColor,
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showFontSizeSheet(
+    BuildContext context,
+    Color bgColor,
+    Color textColor,
+    SettingsProvider provider,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: bgColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Chọn kích thước chữ',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildFontSizeOption(context, 'Nhỏ', 18.0, textColor, provider),
+                _buildFontSizeOption(
+                  context,
+                  'Vừa (Mặc định)',
+                  24.0,
+                  textColor,
+                  provider,
+                ),
+                _buildFontSizeOption(context, 'Lớn', 32.0, textColor, provider),
+                _buildFontSizeOption(
+                  context,
+                  'Rất Lớn',
+                  40.0,
+                  textColor,
+                  provider,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFontSizeOption(
+    BuildContext context,
+    String label,
+    double size,
+    Color textColor,
+    SettingsProvider provider,
+  ) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24.0),
+      title: Text(label, style: TextStyle(color: textColor, fontSize: 16)),
+      leading: Icon(
+        Remix.font_size,
+        color: provider.fontSize == size
+            ? Theme.of(context).primaryColor
+            : textColor,
+      ),
+      trailing: provider.fontSize == size
+          ? Icon(Remix.check_line, color: Theme.of(context).primaryColor)
+          : null,
+      onTap: () {
+        provider.setFontSize(size);
+        Navigator.pop(context);
+      },
+    );
+  }
+
+  void _showAboutAppDialog(
+    BuildContext context,
+    Color bgColor,
+    Color textColor,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: bgColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.0),
+          ),
+          title: Row(
+            children: [
+              Icon(Remix.leaf_line, color: Theme.of(context).primaryColor),
+              const SizedBox(width: 8),
+              Text('Về Mộc Kinh', style: TextStyle(color: textColor)),
+            ],
+          ),
+          content: Text(
+            'Mộc Kinh là ứng dụng đọc kinh Phật được thiết kế tối giản, loại bỏ những yếu tố dư thừa để mang lại trải nghiệm đọc tĩnh tâm và an lạc nhất.\n\n'
+            'Phiên bản: 1.0.0\n'
+            'Phát triển bởi: WebVNZ\n'
+            'Bản quyền © 2026',
+            style: TextStyle(color: textColor, height: 1.5),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Đóng',
+                style: TextStyle(color: Theme.of(context).primaryColor),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

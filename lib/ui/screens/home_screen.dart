@@ -1,45 +1,91 @@
 /**
  * Tên file: home_screen.dart
  * Tên tác giả: La Văn Thanh
- * Mô tả: Màn hình mục lục danh sách các bài kinh, giao diện tương thích hoàn toàn với chế độ Dark Mode. [WEBVNZ.COM]
+ * Mô tả: Màn hình mục lục danh sách các bài kinh, tải dữ liệu động từ file JSON và xử lý tính năng tìm kiếm, tương thích Dark Mode. [WEBVNZ.COM]
  */
+library;
 
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:remixicon/remixicon.dart'; // Import Remix Icon
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  // Danh sách gốc chứa toàn bộ kinh tải từ JSON
+  List<Map<String, dynamic>> _kinhList = [];
+
+  // Danh sách dùng để hiển thị (thay đổi khi tìm kiếm)
+  List<Map<String, dynamic>> _filteredList = [];
+
+  // Trạng thái tải dữ liệu
+  bool _isLoading = true;
+
+  // Controller cho thanh tìm kiếm
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadKinhData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // Hàm đọc dữ liệu từ file JSON
+  Future<void> _loadKinhData() async {
+    try {
+      // Đọc file từ thư mục assets
+      final String response = await rootBundle.loadString(
+        'assets/datas/kinh_phat.json',
+      );
+      // Chuyển đổi JSON string thành List
+      final List<dynamic> data = json.decode(response);
+
+      setState(() {
+        _kinhList = data.cast<Map<String, dynamic>>();
+        _filteredList = _kinhList; // Ban đầu hiển thị toàn bộ
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint("Lỗi đọc file JSON: $e");
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Hàm xử lý tìm kiếm
+  void _filterKinh(String query) {
+    if (query.isEmpty) {
+      setState(() {
+        _filteredList = _kinhList;
+      });
+    } else {
+      setState(() {
+        _filteredList = _kinhList.where((kinh) {
+          final title = kinh['title'].toString().toLowerCase();
+          final desc = kinh['desc'].toString().toLowerCase();
+          final searchLower = query.toLowerCase();
+
+          return title.contains(searchLower) || desc.contains(searchLower);
+        }).toList();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Dữ liệu danh sách kinh giả lập
-    final List<Map<String, String>> kinhList = [
-      {
-        'title': 'Chú Đại Bi',
-        'desc': 'Thiên Thủ Thiên Nhãn Vô Ngại Đại Bi Tâm Đà La Ni',
-      },
-      {
-        'title': 'Bát Nhã Ba La Mật Đa Tâm Kinh',
-        'desc': 'Kinh điển ngắn gọn về trí tuệ cứu cánh',
-      },
-      {
-        'title': 'Kinh Phổ Môn',
-        'desc': 'Phẩm Phổ Môn - Kinh Diệu Pháp Liên Hoa',
-      },
-      {
-        'title': 'Kinh Dược Sư',
-        'desc': 'Tiêu tai diệt tội, cầu thọ, giải trừ bệnh tật',
-      },
-      {
-        'title': 'Kinh A Di Đà',
-        'desc': 'Tán thán cảnh giới Tây Phương Cực Lạc',
-      },
-      {
-        'title': 'Kinh Vu Lan Bồn',
-        'desc': 'Báo hiếu công ơn sinh thành, độ thoát vong linh',
-      },
-    ];
-
     // Xác định màu sắc theo Theme hiện tại
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? const Color(0xFF2A2A2A) : Colors.white;
@@ -64,13 +110,17 @@ class HomeScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16.0),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+                      color: Colors.black.withValues(
+                        alpha: isDark ? 0.2 : 0.04,
+                      ),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
                   ],
                 ),
                 child: TextField(
+                  controller: _searchController,
+                  onChanged: _filterKinh,
                   style: TextStyle(color: textColor), // Đổi màu chữ khi gõ
                   decoration: InputDecoration(
                     hintText: 'Tìm kiếm tựa kinh...',
@@ -80,6 +130,19 @@ class HomeScreen extends StatelessWidget {
                       color: hintColor,
                       size: 20,
                     ),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: Icon(
+                              Remix.close_circle_line,
+                              color: hintColor,
+                              size: 18,
+                            ),
+                            onPressed: () {
+                              _searchController.clear();
+                              _filterKinh('');
+                            },
+                          )
+                        : null,
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(vertical: 16.0),
                   ),
@@ -88,90 +151,122 @@ class HomeScreen extends StatelessWidget {
 
               // Danh sách bài kinh
               Expanded(
-                child: ListView.builder(
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: kinhList.length,
-                  itemBuilder: (context, index) {
-                    final item = kinhList[index];
-                    return GestureDetector(
-                      onTap: () {
-                        // Truyền object sang màn đọc kinh
-                        Navigator.pushNamed(
-                          context,
-                          '/reader',
-                          arguments: item, // Truyền Map thay vì String
-                        );
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 14.0),
-                        padding: const EdgeInsets.all(20.0),
-                        decoration: BoxDecoration(
-                          color: cardColor, // Sử dụng màu thẻ động
-                          borderRadius: BorderRadius.circular(16.0),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(
-                                isDark ? 0.2 : 0.03,
+                child: _isLoading
+                    ? Center(
+                        child: CircularProgressIndicator(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      )
+                    : _filteredList.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Remix.file_search_line,
+                              size: 48,
+                              color: Colors.grey.withValues(alpha: 0.4),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Không tìm thấy bài kinh nào.',
+                              style: TextStyle(
+                                color: isDark
+                                    ? Colors.grey.shade400
+                                    : Colors.grey.shade600,
+                                fontSize: 15,
                               ),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
                             ),
                           ],
                         ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 52,
-                              height: 52,
+                      )
+                    : ListView.builder(
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: _filteredList.length,
+                        itemBuilder: (context, index) {
+                          final item = _filteredList[index];
+                          return GestureDetector(
+                            onTap: () {
+                              // Truyền object sang màn đọc kinh
+                              Navigator.pushNamed(
+                                context,
+                                '/reader',
+                                arguments:
+                                    item, // Truyền toàn bộ Map JSON sang Reader
+                              );
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 14.0),
+                              padding: const EdgeInsets.all(20.0),
                               decoration: BoxDecoration(
-                                color: iconBgColor, // Màu nền icon động
-                                borderRadius: BorderRadius.circular(14.0),
+                                color: cardColor, // Sử dụng màu thẻ động
+                                borderRadius: BorderRadius.circular(16.0),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(
+                                      alpha: isDark ? 0.2 : 0.03,
+                                    ),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
-                              child: Icon(
-                                Remix.book_open_line,
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.primary, // Màu icon theo Theme
-                                size: 24,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              child: Row(
                                 children: [
-                                  Text(
-                                    item['title']!,
-                                    style: TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w700,
-                                      color: textColor, // Màu chữ tiêu đề động
+                                  Container(
+                                    width: 52,
+                                    height: 52,
+                                    decoration: BoxDecoration(
+                                      color: iconBgColor, // Màu nền icon động
+                                      borderRadius: BorderRadius.circular(14.0),
+                                    ),
+                                    child: Icon(
+                                      Remix.book_open_line,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary, // Màu icon theo Theme
+                                      size: 24,
                                     ),
                                   ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    item['desc']!,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: isDark
-                                          ? Colors.grey.shade400
-                                          : Colors
-                                                .grey
-                                                .shade600, // Màu chữ mô tả động
-                                      height: 1.4,
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item['title'] ?? '',
+                                          style: TextStyle(
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.w700,
+                                            color:
+                                                textColor, // Màu chữ tiêu đề động
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          item['desc'] ?? '',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: isDark
+                                                ? Colors.grey.shade400
+                                                : Colors
+                                                      .grey
+                                                      .shade600, // Màu chữ mô tả động
+                                            height: 1.4,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
                                     ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ],
                               ),
                             ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
               ),
             ],
           ),

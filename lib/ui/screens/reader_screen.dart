@@ -1,16 +1,22 @@
 /**
  * Tên file: reader_screen.dart
  * Tên tác giả: La Văn Thanh
- * Mô tả: Màn hình đọc kinh tự động cuộn chữ, tối ưu hiển thị font chữ và màu sắc cho Dark Mode. [WEBVNZ.COM]
+ * Mô tả: Màn hình đọc kinh tự động cuộn chữ, ghi nhớ vị trí đọc khi thoát ra, tích hợp Wakelock và Bookmark. [WEBVNZ.COM]
  */
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:remixicon/remixicon.dart'; // Import Remix Icon
-import 'dart:async'; // Bổ sung thư viện cho Timer
+import 'package:provider/provider.dart';
+import 'package:remixicon/remixicon.dart';
+import 'dart:async';
+import 'package:wakelock_plus/wakelock_plus.dart';
+import '../../providers/settings_provider.dart';
+import '../../providers/bookmark_provider.dart';
+import '../../providers/reading_history_provider.dart'; // Import HistoryProvider
 
 class ReaderScreen extends StatefulWidget {
-  const ReaderScreen({Key? key}) : super(key: key);
+  const ReaderScreen({super.key});
 
   @override
   State<ReaderScreen> createState() => _ReaderScreenState();
@@ -18,60 +24,87 @@ class ReaderScreen extends StatefulWidget {
 
 class _ReaderScreenState extends State<ReaderScreen> {
   bool _isMenuVisible = true;
-  double _fontSize = 24.0;
   double _scrollSpeed = 1.0;
 
-  // --- Biến cho Auto-scroll ---
+  // --- Biến cho Auto-scroll và History ---
   late ScrollController _scrollController;
   bool _isUserScrolling = false;
   Timer? _resumeTimer;
+  Timer? _initialTimer;
+  bool _isInit = false;
+  String _kinhId = '';
+  late ReadingHistoryProvider _historyProvider;
   // ----------------------------
 
   @override
   void initState() {
     super.initState();
-    // Bật chế độ Immersive để ẩn thanh trạng thái và thanh điều hướng
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    _scrollController = ScrollController();
+    WakelockPlus.enable();
+
+    _initialTimer = Timer(const Duration(milliseconds: 1250), () {
+      if (mounted && _isMenuVisible) {
+        _toggleMenu();
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Khởi tạo ScrollController với offset lấy từ lịch sử
+    if (!_isInit) {
+      final Map<String, dynamic>? kinhData =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      _kinhId = kinhData?['id'] ?? '';
+
+      _historyProvider = Provider.of<ReadingHistoryProvider>(
+        context,
+        listen: false,
+      );
+      final savedOffset = _historyProvider.getScrollOffset(_kinhId);
+
+      // Thiết lập vị trí cuộn ban đầu
+      _scrollController = ScrollController(initialScrollOffset: savedOffset);
+      _isInit = true;
+    }
   }
 
   @override
   void dispose() {
-    // Trả lại thanh trạng thái bình thường khi thoát khỏi màn hình đọc
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    WakelockPlus.disable();
 
-    // Dọn dẹp bộ nhớ
+    // Lưu lại vị trí cuộn hiện tại trước khi đóng màn hình
+    if (_scrollController.hasClients && _kinhId.isNotEmpty) {
+      _historyProvider.saveScrollOffset(_kinhId, _scrollController.offset);
+    }
+
     _scrollController.dispose();
     _resumeTimer?.cancel();
+    _initialTimer?.cancel();
 
     super.dispose();
   }
 
-  // Hàm quản lý Auto-scroll bằng animateTo (mượt hơn và không xung đột Physics)
   void _updateAutoScroll({bool forceStop = false}) {
     if (!mounted || !_scrollController.hasClients) return;
 
-    // Nếu người dùng đang tự vuốt tay, KHÔNG can thiệp
-    if (_isUserScrolling) return;
-
-    // Dừng cuộn tự động nếu: Menu đang mở, tốc độ = 0, hoặc bị buộc dừng
-    if (forceStop || _isMenuVisible || _scrollSpeed == 0) {
+    if (forceStop || _isMenuVisible || _scrollSpeed == 0 || _isUserScrolling) {
       _scrollController.jumpTo(_scrollController.offset);
       return;
     }
 
-    // Tính toán khoảng cách để tự động cuộn
     final maxExtent = _scrollController.position.maxScrollExtent;
     final currentOffset = _scrollController.offset;
     final distance = maxExtent - currentOffset;
 
     if (distance > 0) {
-      // Tốc độ 1.0 tương đương ~ 30px / giây
-      final durationSeconds = distance / (_scrollSpeed * 30);
-      if (durationSeconds > 0) {
+      final durationMs = (distance / (_scrollSpeed * 30) * 1000).toInt();
+      if (durationMs > 0) {
         _scrollController.animateTo(
           maxExtent,
-          duration: Duration(milliseconds: (durationSeconds * 1000).toInt()),
+          duration: Duration(milliseconds: durationMs),
           curve: Curves.linear,
         );
       }
@@ -82,18 +115,21 @@ class _ReaderScreenState extends State<ReaderScreen> {
     setState(() {
       _isMenuVisible = !_isMenuVisible;
     });
-    _updateAutoScroll(); // Bật/tắt cuộn khi ẩn/hiện menu
+    _updateAutoScroll();
   }
 
   void _showSettingsSheet() {
-    // Xác định màu nền BottomSheet theo theme
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final sheetBgColor = isDark ? const Color(0xFF2A2A2A) : Colors.white;
     final textColor = Theme.of(context).colorScheme.onSurface;
+    final settingsProvider = Provider.of<SettingsProvider>(
+      context,
+      listen: false,
+    );
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: sheetBgColor, // Màu nền động
+      backgroundColor: sheetBgColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
       ),
@@ -115,12 +151,11 @@ class _ReaderScreenState extends State<ReaderScreen> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: textColor, // Chữ động theo theme
+                        color: textColor,
                       ),
                     ),
                     const SizedBox(height: 32),
 
-                    // Chỉnh cỡ chữ
                     Row(
                       children: [
                         Icon(
@@ -131,16 +166,23 @@ class _ReaderScreenState extends State<ReaderScreen> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: Slider(
-                            value: _fontSize,
+                            value: settingsProvider.fontSize,
                             min: 16.0,
                             max: 48.0,
                             activeColor: Theme.of(context).colorScheme.primary,
                             inactiveColor: Theme.of(
                               context,
-                            ).colorScheme.primary.withOpacity(0.2),
+                            ).colorScheme.primary.withValues(alpha: 0.2),
                             onChanged: (value) {
-                              setModalState(() => _fontSize = value);
-                              setState(() => _fontSize = value);
+                              setModalState(() {});
+                              settingsProvider.setFontSize(value);
+
+                              Future.delayed(
+                                const Duration(milliseconds: 100),
+                                () {
+                                  _updateAutoScroll();
+                                },
+                              );
                             },
                           ),
                         ),
@@ -155,7 +197,6 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
                     const SizedBox(height: 24),
 
-                    // Chỉnh tốc độ cuộn
                     Row(
                       children: [
                         Icon(
@@ -170,13 +211,13 @@ class _ReaderScreenState extends State<ReaderScreen> {
                             min: 0.0,
                             max: 5.0,
                             activeColor: Colors.teal,
-                            inactiveColor: Colors.teal.withOpacity(0.2),
+                            inactiveColor: Colors.teal.withValues(alpha: 0.2),
                             onChanged: (value) {
                               setModalState(() => _scrollSpeed = value);
                               setState(() {
                                 _scrollSpeed = value;
-                                _updateAutoScroll(); // Cập nhật cuộn ngay khi kéo thanh tốc độ
                               });
+                              _updateAutoScroll();
                             },
                           ),
                         ),
@@ -200,21 +241,24 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Nhận dữ liệu dưới dạng Map<String, dynamic>
     final Map<String, dynamic>? kinhData =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
 
-    final title = kinhData?['title'] ?? 'Nội dung kinh';
-    final content = kinhData?['content'] ?? 'Nội dung đang được cập nhật...';
+    final String title = kinhData?['title'] ?? 'Nội dung kinh';
+    final String content =
+        kinhData?['content'] ?? 'Nội dung đang được cập nhật...';
 
-    // Xác định màu chữ động theo theme cho toàn bộ văn bản kinh
     final textColor = Theme.of(context).colorScheme.onSurface;
+    final fontSize = Provider.of<SettingsProvider>(context).fontSize;
+    final bookmarkProvider = Provider.of<BookmarkProvider>(context);
+
+    final bool isSaved = bookmarkProvider.isBookmarked(_kinhId);
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: Stack(
         children: [
-          // Nội dung kinh dạng cuộn
+          // Nội dung kinh
           GestureDetector(
             onTap: _toggleMenu,
             behavior: HitTestBehavior.opaque,
@@ -226,16 +270,16 @@ class _ReaderScreenState extends State<ReaderScreen> {
                   if (notification is ScrollStartNotification &&
                       notification.dragDetails != null) {
                     _isUserScrolling = true;
-                    _updateAutoScroll();
                     _resumeTimer?.cancel();
                   } else if (notification is ScrollEndNotification) {
                     if (_isUserScrolling) {
-                      _resumeTimer = Timer(const Duration(seconds: 2), () {
-                        if (mounted) {
-                          _isUserScrolling = false;
-                          _updateAutoScroll();
-                        }
-                      });
+                      _isUserScrolling = false;
+                      _resumeTimer = Timer(
+                        const Duration(milliseconds: 1250),
+                        () {
+                          if (mounted) _updateAutoScroll();
+                        },
+                      );
                     }
                   }
                   return false;
@@ -255,20 +299,20 @@ class _ReaderScreenState extends State<ReaderScreen> {
                         title.toUpperCase(),
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: _fontSize + 4,
+                          fontSize: fontSize + 4,
                           fontWeight: FontWeight.bold,
-                          color: textColor, // Đổi màu chữ theo theme
+                          color: textColor,
                           height: 1.5,
                         ),
                       ),
                       const SizedBox(height: 32),
                       Text(
-                        content, // Nội dung động
-                        textAlign: TextAlign.justify,
+                        content,
+                        textAlign: TextAlign.left,
                         style: TextStyle(
-                          fontSize: _fontSize,
+                          fontSize: fontSize,
                           height: 2.0,
-                          color: textColor, // Đổi màu chữ theo theme
+                          color: textColor,
                         ),
                       ),
                     ],
@@ -278,7 +322,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
             ),
           ),
 
-          // Thanh trạng thái tuỳ chỉnh (AppBar ảo)
+          // Thanh trạng thái (Menu ảo)
           AnimatedPositioned(
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
@@ -297,10 +341,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withOpacity(
-                      0.6,
-                    ), // Tăng nhẹ opacity để nổi bật nút back
-                    Colors.black.withOpacity(0.0),
+                    Colors.black.withValues(alpha: 0.6),
+                    Colors.black.withValues(alpha: 0.0),
                   ],
                 ),
               ),
@@ -315,13 +357,29 @@ class _ReaderScreenState extends State<ReaderScreen> {
                     ),
                     onPressed: () => Navigator.pop(context),
                   ),
-                  IconButton(
-                    icon: const Icon(
-                      Remix.settings_4_line,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                    onPressed: _showSettingsSheet,
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: Icon(
+                          isSaved ? Remix.heart_3_fill : Remix.heart_3_line,
+                          color: isSaved ? Colors.redAccent : Colors.white,
+                          size: 24,
+                        ),
+                        onPressed: () {
+                          if (kinhData != null) {
+                            bookmarkProvider.toggleBookmark(kinhData);
+                          }
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Remix.settings_4_line,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                        onPressed: _showSettingsSheet,
+                      ),
+                    ],
                   ),
                 ],
               ),

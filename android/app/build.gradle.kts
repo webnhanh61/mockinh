@@ -1,3 +1,9 @@
+/**
+ * Tên file: build.gradle.kts
+ * Tên tác giả: La Văn Thanh
+ * Mô tả: Cấu hình Gradle cho module app của Android. Đã sửa lỗi cú pháp Kotlin DSL cho tính năng Desugaring để hỗ trợ Notification. [WEBVNZ.COM]
+ */
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -12,6 +18,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Đã sửa lại đúng cú pháp Kotlin DSL
+        isCoreLibraryDesugaringEnabled = true 
     }
 
     defaultConfig {
@@ -42,4 +50,9 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Đã sửa lại đúng cú pháp Kotlin DSL (có ngoặc đơn và ngoặc kép)
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }

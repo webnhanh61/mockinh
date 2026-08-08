@@ -1,21 +1,29 @@
+/**
+ * Tên file: main.dart
+ * Tên tác giả: La Văn Thanh
+ * Mô tả: Khởi tạo ứng dụng, cấu hình Hive, MultiProvider và định nghĩa Theme. Bổ sung ReadingHistoryProvider để lưu vị trí đọc. [WEBVNZ.COM]
+ */
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart'; // BẮT BUỘC IMPORT PROVIDER
-import 'package:hive_flutter/hive_flutter.dart'; // BẮT BUỘC IMPORT HIVE
+import 'package:provider/provider.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
-// Import Provider của mình
+// Import Providers
 import 'providers/settings_provider.dart';
+import 'providers/bookmark_provider.dart';
+import 'providers/reading_history_provider.dart'; // Import Provider mới
 
 // Import các màn hình
 import 'ui/screens/main_screen.dart';
 import 'ui/screens/reader_screen.dart';
 
 void main() async {
-  // Đảm bảo Flutter bindings đã khởi tạo trước khi gọi Hive
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Khởi tạo Hive
+  // Khởi tạo Hive
   await Hive.initFlutter();
 
   // Thiết lập màu sắc thanh trạng thái
@@ -26,17 +34,23 @@ void main() async {
     ),
   );
 
-  // 2. Bọc TOÀN BỘ ứng dụng bằng MultiProvider NGAY TẠI ĐÂY
+  // Bọc TOÀN BỘ ứng dụng bằng MultiProvider
   runApp(
     MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => SettingsProvider())],
+      providers: [
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProvider(create: (_) => BookmarkProvider()),
+        ChangeNotifierProvider(
+          create: (_) => ReadingHistoryProvider(),
+        ), // Đăng ký HistoryProvider
+      ],
       child: const MocKinhApp(),
     ),
   );
 }
 
 class MocKinhApp extends StatelessWidget {
-  const MocKinhApp({Key? key}) : super(key: key);
+  const MocKinhApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -49,15 +63,11 @@ class MocKinhApp extends StatelessWidget {
     const Color mocTextDark = Color(0xFFE0E0E0);
     const Color mocPrimaryDark = Color(0xFFD4A373);
 
-    // 3. Lắng nghe SettingsProvider để lấy trạng thái Dark Mode
-    // Bây giờ việc gọi Provider.of chắc chắn thành công vì nó được bọc bởi MultiProvider ở trên
     final settingsProvider = Provider.of<SettingsProvider>(context);
 
     return MaterialApp(
       title: 'Mộc Kinh',
       debugShowCheckedModeBanner: false,
-
-      // Chọn ThemeMode dựa vào trạng thái trong Provider
       themeMode: settingsProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
 
       // --- LIGHT THEME ---

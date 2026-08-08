@@ -1,19 +1,21 @@
 /**
  * Tên file: main_screen.dart
  * Tên tác giả: La Văn Thanh
- * Mô tả: Màn hình chính chứa thanh điều hướng BottomNavigationBar, đã tích hợp đổi màu động theo Dark Mode. [WEBVNZ.COM]
+ * Mô tả: Màn hình chính chứa thanh điều hướng, cập nhật giao diện hiển thị danh sách Đã lưu cho BookmarkScreen. [WEBVNZ.COM]
  */
+library;
 
 import 'package:flutter/material.dart';
-import 'package:remixicon/remixicon.dart'; // Import Remix Icon
+import 'package:provider/provider.dart';
+import 'package:remixicon/remixicon.dart';
 
-// Đảm bảo import đầy đủ 4 màn hình của 4 tab
 import 'home_screen.dart';
 import 'explore_screen.dart';
 import 'settings_screen.dart';
+import '../../providers/bookmark_provider.dart'; // Import BookmarkProvider
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({Key? key}) : super(key: key);
+  const MainScreen({super.key});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -22,12 +24,11 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
-  // Danh sách này phải có CHÍNH XÁC 4 màn hình
   final List<Widget> _screens = [
-    const HomeScreen(), // Tab 1 (Index 0)
-    const ExploreScreen(), // Tab 2 (Index 1)
-    const BookmarkScreen(), // Tab 3 (Index 2)
-    const SettingsScreen(), // Tab 4 (Index 3)
+    const HomeScreen(),
+    const ExploreScreen(),
+    const BookmarkScreen(),
+    const SettingsScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -38,19 +39,17 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Kiểm tra chế độ Sáng/Tối để đổi màu thanh điều hướng
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final navBarColor = isDark ? const Color(0xFF1A1A1A) : Colors.white;
     final shadowColor = isDark
-        ? Colors.black.withOpacity(0.4)
-        : Colors.black.withOpacity(0.05);
+        ? Colors.black.withValues(alpha: 0.4)
+        : Colors.black.withValues(alpha: 0.05);
 
     return Scaffold(
-      // IndexedStack giúp giữ state của các tab
       body: IndexedStack(index: _selectedIndex, children: _screens),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: navBarColor, // Sử dụng màu động
+          color: navBarColor,
           boxShadow: [
             BoxShadow(
               color: shadowColor,
@@ -61,14 +60,12 @@ class _MainScreenState extends State<MainScreen> {
         ),
         child: SafeArea(
           child: BottomNavigationBar(
-            backgroundColor: navBarColor, // Sử dụng màu động
+            backgroundColor: navBarColor,
             elevation: 0,
             type: BottomNavigationBarType.fixed,
             currentIndex: _selectedIndex,
             onTap: _onItemTapped,
-            selectedItemColor: Theme.of(
-              context,
-            ).colorScheme.primary, // Đổi màu icon đang chọn theo Theme
+            selectedItemColor: Theme.of(context).colorScheme.primary,
             unselectedItemColor: isDark
                 ? Colors.grey.shade600
                 : Colors.grey.shade400,
@@ -107,34 +104,135 @@ class _MainScreenState extends State<MainScreen> {
   }
 }
 
-// Màn hình Bookmark (Đã lưu) tạm thời
+// Màn hình Bookmark (Đã lưu) được kết nối với Provider
 class BookmarkScreen extends StatelessWidget {
-  const BookmarkScreen({Key? key}) : super(key: key);
+  const BookmarkScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final bookmarkProvider = Provider.of<BookmarkProvider>(context);
+    final savedList = bookmarkProvider.bookmarkedList;
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF2A2A2A) : Colors.white;
+    final iconBgColor = isDark
+        ? const Color(0xFF3A3A3A)
+        : const Color(0xFFF3EBE1);
+    final textColor = Theme.of(context).colorScheme.onSurface;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Kinh Đã Lưu')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Remix.bookmark_3_line,
-              size: 64,
-              color: Colors.grey.withOpacity(0.3),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Chưa có bài kinh nào được lưu.',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                fontSize: 16,
+      body: savedList.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Remix.bookmark_3_line,
+                    size: 64,
+                    color: Colors.grey.withValues(alpha: 0.3),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Chưa có bài kinh nào được lưu.',
+                    style: TextStyle(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.6),
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 8.0,
+                ),
+                child: ListView.builder(
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: savedList.length,
+                  itemBuilder: (context, index) {
+                    final item = savedList[index];
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.pushNamed(
+                          context,
+                          '/reader',
+                          arguments: item,
+                        );
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 14.0),
+                        padding: const EdgeInsets.all(20.0),
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          borderRadius: BorderRadius.circular(16.0),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(
+                                alpha: isDark ? 0.2 : 0.03,
+                              ),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                color: iconBgColor,
+                                borderRadius: BorderRadius.circular(14.0),
+                              ),
+                              child: Icon(
+                                Remix
+                                    .heart_3_fill, // Dùng icon trái tim cho mục đã lưu
+                                color: Colors.redAccent,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item['title'] ?? '',
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w700,
+                                      color: textColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    item['desc'] ?? '',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: isDark
+                                          ? Colors.grey.shade400
+                                          : Colors.grey.shade600,
+                                      height: 1.4,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 }

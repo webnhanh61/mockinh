@@ -1,8 +1,6 @@
-/**
- * Tên file: settings_provider.dart
- * Tên tác giả: La Văn Thanh
- * Mô tả: Provider quản lý trạng thái cài đặt của ứng dụng. Gọi hiển thị hộp thoại xin quyền trước khi kích hoạt Nhắc nhở. [WEBVNZ.COM]
- */
+/// Tên file: settings_provider.dart
+/// Tên tác giả: La Văn Thanh
+/// Mô tả: Provider quản lý trạng thái cài đặt của ứng dụng. Gọi hiển thị hộp thoại xin quyền trước khi kích hoạt Nhắc nhở. [WEBVNZ.COM]
 library;
 
 import 'package:flutter/material.dart';

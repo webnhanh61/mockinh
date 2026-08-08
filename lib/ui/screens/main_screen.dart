@@ -1,8 +1,6 @@
-/**
- * Tên file: main_screen.dart
- * Tên tác giả: La Văn Thanh
- * Mô tả: Màn hình chính chứa thanh điều hướng, cập nhật giao diện hiển thị danh sách Đã lưu cho BookmarkScreen. [WEBVNZ.COM]
- */
+/// Tên file: main_screen.dart
+/// Tên tác giả: La Văn Thanh
+/// Mô tả: Màn hình chính chứa thanh điều hướng, cập nhật giao diện hiển thị danh sách Đã lưu cho BookmarkScreen. Đã thêm tab Tu Tập. [WEBVNZ.COM]
 library;
 
 import 'package:flutter/material.dart';
@@ -11,8 +9,9 @@ import 'package:remixicon/remixicon.dart';
 
 import 'home_screen.dart';
 import 'explore_screen.dart';
+import 'practice_screen.dart'; // Import màn hình Tu Tập mới
 import 'settings_screen.dart';
-import '../../providers/bookmark_provider.dart'; // Import BookmarkProvider
+import '../../providers/bookmark_provider.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -27,6 +26,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _screens = [
     const HomeScreen(),
     const ExploreScreen(),
+    const PracticeScreen(), // Thêm màn hình Tu Tập vào vị trí thứ 3
     const BookmarkScreen(),
     const SettingsScreen(),
   ];
@@ -73,7 +73,7 @@ class _MainScreenState extends State<MainScreen> {
             showUnselectedLabels: false,
             selectedLabelStyle: const TextStyle(
               fontWeight: FontWeight.w600,
-              fontSize: 12,
+              fontSize: 11, // Giảm nhẹ font size để vừa 5 tab
             ),
             items: const [
               BottomNavigationBarItem(
@@ -85,6 +85,11 @@ class _MainScreenState extends State<MainScreen> {
                 icon: Icon(Remix.compass_3_line),
                 activeIcon: Icon(Remix.compass_3_fill, size: 26),
                 label: 'Khám phá',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Remix.leaf_line), // Icon cho tab Tu Tập
+                activeIcon: Icon(Remix.leaf_fill, size: 26),
+                label: 'Tu Tập',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Remix.bookmark_line),
@@ -190,8 +195,7 @@ class BookmarkScreen extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(14.0),
                               ),
                               child: Icon(
-                                Remix
-                                    .heart_3_fill, // Dùng icon trái tim cho mục đã lưu
+                                Remix.heart_3_fill,
                                 color: Colors.redAccent,
                                 size: 24,
                               ),

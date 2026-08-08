@@ -1,7 +1,7 @@
 /**
- * Tên file: main.dart
+ * Tên file: main.dart 
  * Tên tác giả: La Văn Thanh
- * Mô tả: Khởi tạo ứng dụng, cấu hình Hive, MultiProvider và khởi tạo lõi Thông báo (NotificationHelper). [WEBVNZ.COM]
+ * Mô tả: Khởi tạo ứng dụng, cấu hình Hive, MultiProvider và khởi tạo lõi Thông báo (NotificationHelper). Đã bổ sung PracticeProvider để quản lý tu tập. [WEBVNZ.COM]
  */
 library;
 
@@ -15,6 +15,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'providers/settings_provider.dart';
 import 'providers/bookmark_provider.dart';
 import 'providers/reading_history_provider.dart';
+import 'providers/practice_provider.dart';
 
 // Import các màn hình
 import 'ui/screens/main_screen.dart';
@@ -30,7 +31,7 @@ void main() async {
   // Khởi tạo cơ sở dữ liệu cục bộ Hive
   await Hive.initFlutter();
 
-  // ĐÁNH THỨC HỆ THỐNG THÔNG BÁO VÀ MÚI GIỜ KHI APP VỪA MỞ LÊN (Quan trọng nhất)
+  // Khởi tạo hệ thống thông báo và múi giờ khi app vừa mở lên
   await NotificationHelper.init();
 
   // Thiết lập màu sắc thanh trạng thái trong suốt
@@ -47,6 +48,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => BookmarkProvider()),
         ChangeNotifierProvider(create: (_) => ReadingHistoryProvider()),
+        ChangeNotifierProvider(create: (_) => PracticeProvider()),
       ],
       child: const MocKinhApp(),
     ),

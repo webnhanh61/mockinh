@@ -1,8 +1,6 @@
-/**
- * Tên file: home_screen.dart
- * Tên tác giả: La Văn Thanh
- * Mô tả: Màn hình mục lục danh sách các bài kinh, tải dữ liệu động từ file JSON và xử lý tính năng tìm kiếm, tương thích Dark Mode. [WEBVNZ.COM]
- */
+/// Tên file: home_screen.dart
+/// Tên tác giả: La Văn Thanh
+/// Mô tả: Màn hình mục lục danh sách các bài kinh, tải dữ liệu động từ file JSON và xử lý tính năng tìm kiếm, tương thích Dark Mode. [WEBVNZ.COM]
 library;
 
 import 'dart:convert';

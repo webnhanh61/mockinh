@@ -1,7 +1,7 @@
 /**
  * Tên file: reader_screen.dart
  * Tên tác giả: La Văn Thanh
- * Mô tả: Màn hình đọc kinh tự động cuộn chữ, ghi nhớ vị trí đọc khi thoát ra, tích hợp Wakelock và Bookmark. [WEBVNZ.COM]
+ * Mô tả: Màn hình đọc kinh tự động cuộn chữ, ghi nhớ vị trí đọc khi thoát ra, tích hợp Wakelock, Bookmark, Hẹn giờ tắt và ghi nhận Nhật ký tu tập. [WEBVNZ.COM]
  */
 library;
 
@@ -13,7 +13,8 @@ import 'dart:async';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/bookmark_provider.dart';
-import '../../providers/reading_history_provider.dart'; // Import HistoryProvider
+import '../../providers/reading_history_provider.dart';
+import '../../providers/practice_provider.dart';
 
 class ReaderScreen extends StatefulWidget {
   const ReaderScreen({super.key});
@@ -34,7 +35,12 @@ class _ReaderScreenState extends State<ReaderScreen> {
   bool _isInit = false;
   String _kinhId = '';
   late ReadingHistoryProvider _historyProvider;
-  // ----------------------------
+  late PracticeProvider _practiceProvider;
+
+  // --- Biến cho Hẹn giờ tắt ---
+  Timer? _sleepTimer;
+  int _sleepMinutesRemaining = 0;
+  bool _isSleepTimerActive = false;
 
   @override
   void initState() {
@@ -52,7 +58,6 @@ class _ReaderScreenState extends State<ReaderScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Khởi tạo ScrollController với offset lấy từ lịch sử
     if (!_isInit) {
       final Map<String, dynamic>? kinhData =
           ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
@@ -62,9 +67,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
         context,
         listen: false,
       );
+      _practiceProvider = Provider.of<PracticeProvider>(context, listen: false);
+
       final savedOffset = _historyProvider.getScrollOffset(_kinhId);
 
-      // Thiết lập vị trí cuộn ban đầu
       _scrollController = ScrollController(initialScrollOffset: savedOffset);
       _isInit = true;
     }
@@ -75,14 +81,16 @@ class _ReaderScreenState extends State<ReaderScreen> {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     WakelockPlus.disable();
 
-    // Lưu lại vị trí cuộn hiện tại trước khi đóng màn hình
+    // Lưu lại vị trí cuộn và ghi nhận nhật ký tu tập trước khi đóng
     if (_scrollController.hasClients && _kinhId.isNotEmpty) {
       _historyProvider.saveScrollOffset(_kinhId, _scrollController.offset);
+      _practiceProvider.logPractice();
     }
 
     _scrollController.dispose();
     _resumeTimer?.cancel();
     _initialTimer?.cancel();
+    _sleepTimer?.cancel();
 
     super.dispose();
   }
@@ -116,6 +124,51 @@ class _ReaderScreenState extends State<ReaderScreen> {
       _isMenuVisible = !_isMenuVisible;
     });
     _updateAutoScroll();
+  }
+
+  // Khởi động bộ đếm hẹn giờ tắt
+  void _startSleepTimer(int minutes) {
+    _sleepTimer?.cancel();
+    setState(() {
+      _sleepMinutesRemaining = minutes;
+      _isSleepTimerActive = true;
+    });
+
+    _sleepTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      setState(() {
+        _sleepMinutesRemaining--;
+      });
+
+      if (_sleepMinutesRemaining <= 0) {
+        timer.cancel();
+        _handleSleepTimeout();
+      }
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Sẽ tự động tắt sau $minutes phút nữa.'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  // Xử lý khi hết giờ
+  void _handleSleepTimeout() {
+    // Lưu lại trạng thái
+    if (_scrollController.hasClients && _kinhId.isNotEmpty) {
+      _historyProvider.saveScrollOffset(_kinhId, _scrollController.offset);
+      _practiceProvider.logPractice();
+    }
+
+    // Thoát về trang trước
+    Navigator.of(context).pop();
   }
 
   void _showSettingsSheet() {
@@ -229,6 +282,55 @@ class _ReaderScreenState extends State<ReaderScreen> {
                         ),
                       ],
                     ),
+
+                    const SizedBox(height: 32),
+                    Text(
+                      'Hẹn giờ tắt',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildTimerOption(15, setModalState),
+                        _buildTimerOption(30, setModalState),
+                        _buildTimerOption(45, setModalState),
+                        _buildTimerOption(60, setModalState),
+                        if (_isSleepTimerActive)
+                          GestureDetector(
+                            onTap: () {
+                              _sleepTimer?.cancel();
+                              setState(() {
+                                _isSleepTimerActive = false;
+                                _sleepMinutesRemaining = 0;
+                              });
+                              setModalState(() {});
+                              Navigator.pop(context);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Text(
+                                'Hủy',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -236,6 +338,43 @@ class _ReaderScreenState extends State<ReaderScreen> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildTimerOption(int minutes, StateSetter setModalState) {
+    final bool isSelected =
+        _isSleepTimerActive &&
+        _sleepMinutesRemaining > 0 &&
+        _sleepMinutesRemaining <= minutes &&
+        (_sleepMinutesRemaining > minutes - 15 || minutes == 15);
+    return GestureDetector(
+      onTap: () {
+        _startSleepTimer(minutes);
+        Navigator.pop(context);
+      },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? Theme.of(context).primaryColor
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? Theme.of(context).primaryColor
+                : Colors.grey.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Text(
+          '${minutes}p',
+          style: TextStyle(
+            color: isSelected
+                ? Colors.white
+                : Theme.of(context).colorScheme.onSurface,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
     );
   }
 
@@ -359,6 +498,27 @@ class _ReaderScreenState extends State<ReaderScreen> {
                   ),
                   Row(
                     children: [
+                      if (_isSleepTimerActive)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Remix.timer_line,
+                                color: Colors.orangeAccent,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '$_sleepMinutesRemaining p',
+                                style: const TextStyle(
+                                  color: Colors.orangeAccent,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       IconButton(
                         icon: Icon(
                           isSaved ? Remix.heart_3_fill : Remix.heart_3_line,

@@ -1,15 +1,17 @@
 /**
  * Tên file: explore_screen.dart
  * Tên tác giả: La Văn Thanh
- * Mô tả: Màn hình khám phá các chủ đề kinh và lời Phật dạy, bổ sung hiển thị ngày Âm lịch hiện tại (Sử dụng package lunar). [WEBVNZ.COM]
+ * Mô tả: Màn hình khám phá các chủ đề kinh, hiển thị Lịch Âm và tính năng thay đổi Lời Phật dạy tự động mỗi 5 phút hoặc khi bấm nút. Đã sửa lỗi icon danh mục Cầu Siêu. [WEBVNZ.COM]
  */
 library;
 
 import 'dart:convert';
+import 'dart:math';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:remixicon/remixicon.dart';
-import 'package:lunar/lunar.dart'; // Sử dụng thư viện lunar mới
+import 'package:lunar/lunar.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -21,6 +23,21 @@ class ExploreScreen extends StatefulWidget {
 class _ExploreScreenState extends State<ExploreScreen> {
   bool _isLoading = true;
   String _lunarDateString = '';
+  int _currentQuoteIndex = 0;
+  Timer? _quoteTimer;
+
+  final List<String> _quotes = [
+    'Hàng ngàn ngọn nến có thể được thắp sáng từ một ngọn nến duy nhất, và cuộc đời của ngọn nến ấy sẽ không bị tàn lụi. Hạnh phúc không bao giờ cạn đi khi được chia sẻ.',
+    'Bí quyết của sức khỏe cho cả tinh thần và thể xác không phải là hờn trách quá khứ hay lo sợ tương lai, mà là sống trong giây phút hiện tại một cách khôn ngoan và nghiêm túc.',
+    'Không có con đường nào dẫn đến hạnh phúc. Hạnh phúc chính là con đường.',
+    'Giận dữ là lấy lỗi lầm của người khác để trừng phạt chính mình.',
+    'Hận thù không thể hóa giải bởi hận thù, mà bằng tình yêu thương. Đây là chân lý muôn đời.',
+    'Bình yên đến từ bên trong, đừng tìm nó ở bên ngoài.',
+    'Tâm dẫn dắt mọi hành động. Nếu bạn nói hay làm với tâm trong sáng, hạnh phúc sẽ theo bạn như hình với bóng.',
+    'Không ai cứu được chúng ta ngoài chính chúng ta. Không ai có thể và không ai làm được. Chúng ta phải tự bước đi trên con đường của mình.',
+    'Người chinh phục chính mình còn vĩ đại hơn một nghìn lần người chinh phục một nghìn người trên chiến trường.',
+    'Ba thứ không thể che giấu lâu dài: Mặt trời, mặt trăng và sự thật.',
+  ];
 
   final List<Map<String, dynamic>> _categories = [
     {
@@ -47,16 +64,34 @@ class _ExploreScreenState extends State<ExploreScreen> {
       'color': 0xFFD4A373,
       'kinhList': <Map<String, dynamic>>[],
     },
+    {
+      'title': 'Cầu Siêu',
+      'icon': Remix.cloud_line, // Đã thay đổi thành icon chuẩn có sẵn
+      'color': 0xFF4A4E69,
+      'kinhList': <Map<String, dynamic>>[],
+    },
   ];
 
   @override
   void initState() {
     super.initState();
     _calculateLunarDate();
+    _initDailyQuote();
     _loadKinhData();
+
+    _quoteTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
+      if (mounted) {
+        _shuffleQuote();
+      }
+    });
   }
 
-  // Hàm tính toán và định dạng ngày âm lịch hôm nay
+  @override
+  void dispose() {
+    _quoteTimer?.cancel();
+    super.dispose();
+  }
+
   void _calculateLunarDate() {
     final now = DateTime.now();
     final lunar = Lunar.fromDate(now);
@@ -64,6 +99,22 @@ class _ExploreScreenState extends State<ExploreScreen> {
     setState(() {
       _lunarDateString =
           'Ngày ${lunar.getDay()} tháng ${lunar.getMonth()} năm Âm lịch';
+    });
+  }
+
+  void _initDailyQuote() {
+    _currentQuoteIndex = Random().nextInt(_quotes.length);
+  }
+
+  void _shuffleQuote() {
+    final random = Random();
+    int newIndex;
+    do {
+      newIndex = random.nextInt(_quotes.length);
+    } while (newIndex == _currentQuoteIndex && _quotes.length > 1);
+
+    setState(() {
+      _currentQuoteIndex = newIndex;
     });
   }
 
@@ -112,7 +163,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Hiển thị Lịch Âm
               Padding(
                 padding: const EdgeInsets.only(bottom: 16.0, left: 8.0),
                 child: Row(
@@ -135,7 +185,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 ),
               ),
 
-              // Lời Phật dạy (Trích dẫn trong ngày)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(24.0),
@@ -159,19 +208,60 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Remix.double_quotes_l,
-                      color: Colors.white.withValues(alpha: 0.5),
-                      size: 32,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Remix.double_quotes_l,
+                          color: Colors.white.withValues(alpha: 0.5),
+                          size: 32,
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            _quoteTimer?.cancel();
+                            _shuffleQuote();
+                            _quoteTimer = Timer.periodic(
+                              const Duration(minutes: 5),
+                              (timer) {
+                                if (mounted) _shuffleQuote();
+                              },
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(6.0),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Remix.refresh_line,
+                              color: Colors.white.withValues(alpha: 0.9),
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
-                    const Text(
-                      'Hàng ngàn ngọn nến có thể được thắp sáng từ một ngọn nến duy nhất, và cuộc đời của ngọn nến ấy sẽ không bị tàn lụi. Hạnh phúc không bao giờ cạn đi khi được chia sẻ.',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        height: 1.6,
-                        fontStyle: FontStyle.italic,
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 500),
+                      transitionBuilder:
+                          (Widget child, Animation<double> animation) {
+                            return FadeTransition(
+                              opacity: animation,
+                              child: child,
+                            );
+                          },
+                      child: Text(
+                        _quotes[_currentQuoteIndex],
+                        key: ValueKey<int>(_currentQuoteIndex),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          height: 1.6,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
